@@ -54,7 +54,7 @@ NSGradient(starting: NSColor(calibratedRed: 0.20, green: 0.24, blue: 0.34, alpha
     .draw(in: bgRect, angle: -90)
 
 let config = NSImage.SymbolConfiguration(pointSize: size * 0.5, weight: .semibold)
-if let symbol = NSImage(systemSymbolName: "wrench.and.screwdriver.fill", accessibilityDescription: nil)?
+if let symbol = NSImage(systemSymbolName: "square.grid.2x2.fill", accessibilityDescription: nil)?
         .withSymbolConfiguration(config),
    let cg = symbol.cgImage(forProposedRect: nil, context: nil, hints: nil),
    let ctx = NSGraphicsContext.current?.cgContext {
@@ -94,20 +94,10 @@ echo "Icon:  AppIcon.icns rendered from SF Symbol"
 SOURCES=$(find Sources -name '*.swift')
 swiftc -O -o "$APP/Contents/MacOS/$BIN" $SOURCES
 
-# Sign with a stable local identity so macOS treats rebuilds as the same
-# app. Ad-hoc signing (--sign -) hashes the raw binary with no identity
-# string, so the hash — and therefore any TCC grant (Accessibility, Screen
-# Recording) keyed to it — changes on every rebuild, silently reprompting.
-# A self-signed cert gives codesign a stable Subject/CN to embed instead,
-# so the grant survives rebuilds. Falls back to ad-hoc if the cert hasn't
-# been created yet (run ./setup-signing.sh once to create it).
-SIGN_IDENTITY="MacTools Local Dev"
-if ! security find-certificate -c "$SIGN_IDENTITY" -a login.keychain-db >/dev/null 2>&1; then
-    echo "No local signing cert found — falling back to ad-hoc (permissions will need re-granting after each rebuild)."
-    echo "Run ./setup-signing.sh once to fix this permanently."
-    SIGN_IDENTITY="-"
-fi
-codesign --force --deep --sign "$SIGN_IDENTITY" "$APP"
+# Ad-hoc sign so macOS treats rebuilds as the same app identity — without
+# this, granting Accessibility (needed for clipboard auto-paste) tends not
+# to stick across rebuilds.
+codesign --force --deep --sign - "$APP"
 
 echo "Built $APP"
 
