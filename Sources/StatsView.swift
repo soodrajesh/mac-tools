@@ -21,10 +21,8 @@ struct StatsView: View {
 
             Divider().overlay(Color.white.opacity(0.15))
 
-            iconRow(icon: "arrow.down", value: stats.netDownText,
-                    icon2: "arrow.up", value2: stats.netUpText)
-            iconRow(icon: "arrow.down.doc", value: stats.diskReadText,
-                    icon2: "arrow.up.doc", value2: stats.diskWriteText)
+            categoryRow(category: "wifi", down: stats.netDownText, up: stats.netUpText)
+            categoryRow(category: "internaldrive", down: stats.diskReadText, up: stats.diskWriteText)
 
             Text(stats.diskCapacityText)
                 .font(.system(size: 10))
@@ -59,22 +57,29 @@ struct StatsView: View {
         }
     }
 
-    /// Network row: down/up. Disk row: read/write. Same layout, different icons.
-    private func iconRow(icon: String, value: String, icon2: String, value2: String) -> some View {
-        HStack(spacing: 16) {
+    /// A leading category glyph (wifi antenna for network, drive icon for
+    /// disk) makes the row identity obvious at a glance — the down/up
+    /// arrows alone looked identical between the network and disk rows.
+    private func categoryRow(category: String, down: String, up: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: category)
+                .font(.system(size: 11))
+                .foregroundColor(secondaryColor)
+                .frame(width: 14)
+
             HStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.system(size: 10))
+                Image(systemName: "arrow.down")
+                    .font(.system(size: 9, weight: .bold))
                     .foregroundColor(secondaryColor)
-                Text(value)
+                Text(down)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(.white)
             }
             HStack(spacing: 4) {
-                Image(systemName: icon2)
-                    .font(.system(size: 10))
+                Image(systemName: "arrow.up")
+                    .font(.system(size: 9, weight: .bold))
                     .foregroundColor(secondaryColor)
-                Text(value2)
+                Text(up)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(.white)
             }
