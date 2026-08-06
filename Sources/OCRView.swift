@@ -44,6 +44,5 @@ struct OCRView: View {
                 .frame(maxWidth: .infinity, alignment: .center)
         }
         .frame(width: 260, height: 190, alignment: .top)
-        .padding(12)
     }
 }
