@@ -1,25 +1,28 @@
 # MacTools
 
-A single macOS menu-bar app combining three previously separate utilities:
-live CPU/MEM monitoring, a Calculator/Calendar widget, and clipboard history
-with a global paste picker. Swift/AppKit + SwiftUI, no third-party
+A single macOS menu-bar app combining four previously separate utilities:
+live CPU/MEM monitoring, a Calculator/Calendar widget, clipboard history
+with a global paste picker, and on-device screenshot OCR. Swift/AppKit + SwiftUI, no third-party
 dependencies.
 
-Supersedes three predecessor apps (each left intact, still independently buildable):
+Supersedes four predecessor apps (each left intact, still independently buildable):
 - [sysmonitor-menubar](https://github.com/soodrajesh/sysmonitor-menubar) — CPU/MEM readout, Free Up Memory
 - `quick-tools` in [mac-widgets](https://github.com/soodrajesh/mac-widgets) — Calculator/Calendar popover
 - [mac-clipboard](https://github.com/soodrajesh/mac-clipboard) / ClipKeep — clipboard history, ⌘⇧V picker
+- [mac-ocr](https://github.com/soodrajesh/mac-ocr) / SnapText — screenshot-to-text via Vision, ⌘⇧O
 
 ## Features
 
 - **Menu bar**: live two-line `CPU %` / `MEM %` readout (ported from mac-monitor), values turn red under load
-- **Left-click** the icon → popover with 4 icon-tab switcher:
+- **Left-click** the icon → popover with 5 icon-tab switcher:
   - 🖥 **Stats** — CPU/Memory detail, top process, live network throughput (down/up) and disk I/O (read/write) with free/total capacity, Free Up Memory (runs `purge` immediately, no prompt — see setup below)
   - 📅 **Calendar** — month grid, Irish public holidays marked (computed algorithmically)
   - 🧮 **Calculator** — basic 4-op calculator
   - 📋 **Clipboard** — recent copies with real thumbnails for images, click to copy + auto-paste
+  - 🔍 **OCR** — extract text from screenshots or existing images via on-device Vision framework
 - **Right-click** the icon → Free Up Memory, Enable Accessibility (if not granted), Quit
 - **⌘⇧V** anywhere → floating searchable paste-picker (independent of the popover), ↑/↓ to navigate, Return to paste
+- **⌘⇧O** anywhere → macOS screenshot UI (same as ⌘⇧4), runs OCR, copies text to clipboard
 - No Dock icon (`LSUIElement`); installs to `/Applications`, ad-hoc codesigned so the Accessibility grant survives rebuilds
 
 ## Build
@@ -34,26 +37,33 @@ Compiles `Sources/*.swift`, renders the app icon, ad-hoc signs, and installs to 
 
 ## Before first launch
 
-Quit the three predecessor apps if they're running, to avoid duplicate
-clipboard polling and a hotkey conflict on ⌘⇧V:
+Quit the four predecessor apps if they're running, to avoid duplicate
+clipboard polling and hotkey conflicts on ⌘⇧V and ⌘⇧O:
 
 ```bash
-pkill -f SysMonitor; pkill -f QuickTools; pkill -f ClipKeep
+pkill -f SysMonitor; pkill -f QuickTools; pkill -f ClipKeep; pkill -f SnapText
 ```
 
 ```bash
 open /Applications/MacTools.app
 ```
 
-## Enable auto-paste (optional)
+## Enable auto-paste & OCR (optional)
 
-Clipboard auto-paste needs Accessibility access — MacTools prompts on first
+**Accessibility** (for clipboard auto-paste): MacTools prompts on first
 launch. **This is a new bundle identity, so if you'd previously granted this
 to ClipKeep, it does not carry over — grant it again:**
 
 **System Settings → Privacy & Security → Accessibility → enable MacTools**
 
 Without it, selecting a clipboard item still copies it — you just press ⌘V yourself.
+
+**Screen Recording** (for OCR capture): MacTools prompts the first time you use
+⌘⇧O or click "Capture Region" in the OCR tab. Grant it in:
+
+**System Settings → Privacy & Security → Screen Recording → enable MacTools**
+
+Without it, screenshot capture (and thus OCR) will fail silently.
 
 ## Free Up Memory setup (optional)
 
