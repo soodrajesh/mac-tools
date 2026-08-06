@@ -34,6 +34,14 @@ openssl pkcs12 -export -legacy -out "$TMP/cert.p12" -inkey "$TMP/key.pem" -in "$
 security import "$TMP/cert.p12" -k ~/Library/Keychains/login.keychain-db -P "$PASS" \
     -T /usr/bin/codesign -T /usr/bin/security
 
+# codesign will happily sign with an untrusted self-signed cert by name, but
+# TCC (Accessibility/Screen Recording grants) needs the identity to actually
+# pass code-signing trust validation to treat it as stable across rebuilds —
+# without this step, `security find-identity -v -p codesigning` reports 0
+# valid identities and permission grants keep dropping exactly like ad-hoc.
+# Scoped to the codeSign policy only, not full SSL/browser trust.
+security add-trusted-cert -d -r trustRoot -p codeSign -k ~/Library/Keychains/login.keychain-db "$TMP/cert.pem"
+
 echo "✓ Created and imported '$IDENTITY'. Future ./build.sh runs will sign with it."
 echo "  Note: this changes the app's identity once — macOS will ask you to"
 echo "  re-grant Accessibility/Screen Recording one more time after the next"
