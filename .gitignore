@@ -1,0 +1,9 @@
+# Build output
+MacTools.app/
+*.o
+*.swiftmodule
+*.dSYM/
+build/
+
+# macOS
+.DS_Store
