@@ -18,17 +18,11 @@ struct ClipboardListView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         ForEach(store.items.prefix(12), id: \.id) { item in
                             Button(action: { onSelect(item) }) {
-                                HStack {
-                                    Text(rowTitle(for: item))
-                                        .font(.system(size: 11))
-                                        .foregroundColor(.white)
-                                        .lineLimit(1)
-                                    Spacer()
-                                }
-                                .padding(.horizontal, 6)
-                                .frame(height: 22)
-                                .background(Color.white.opacity(0.06))
-                                .cornerRadius(4)
+                                rowContent(for: item)
+                                    .padding(.horizontal, 6)
+                                    .frame(height: 22)
+                                    .background(Color.white.opacity(0.06))
+                                    .cornerRadius(4)
                             }
                             .buttonStyle(.plain)
                         }
@@ -39,13 +33,44 @@ struct ClipboardListView: View {
         .frame(width: 260, height: 190, alignment: .top)
     }
 
-    private func rowTitle(for item: ClipboardItem) -> String {
-        switch item.kind {
-        case .text:
-            let flat = item.preview.replacingOccurrences(of: "\n", with: " ")
-            return flat.count > 40 ? String(flat.prefix(40)) + "…" : flat
-        case .image:
-            return "🖼 Image"
+    /// Text rows show the preview string; image rows show the actual
+    /// thumbnail (loaded from the store's on-disk PNG) plus its dimensions —
+    /// matching ClipKeep's own picker (`PickerRowView`) instead of a generic
+    /// placeholder icon.
+    @ViewBuilder
+    private func rowContent(for item: ClipboardItem) -> some View {
+        HStack(spacing: 6) {
+            switch item.kind {
+            case .text:
+                Text(rowTitle(for: item))
+                    .font(.system(size: 11))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+            case .image:
+                if let f = item.imageFile, let nsImage = NSImage(contentsOf: store.imageURL(for: f)) {
+                    Image(nsImage: nsImage)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 18, height: 18)
+                        .cornerRadius(2)
+                    Text("\(Int(nsImage.size.width))×\(Int(nsImage.size.height))")
+                        .font(.system(size: 11))
+                        .foregroundColor(.white)
+                } else {
+                    Image(systemName: "photo")
+                        .font(.system(size: 11))
+                        .foregroundColor(.white)
+                    Text("Image")
+                        .font(.system(size: 11))
+                        .foregroundColor(.white)
+                }
+            }
+            Spacer()
         }
+    }
+
+    private func rowTitle(for item: ClipboardItem) -> String {
+        let flat = item.preview.replacingOccurrences(of: "\n", with: " ")
+        return flat.count > 40 ? String(flat.prefix(40)) + "…" : flat
     }
 }

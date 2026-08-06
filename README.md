@@ -14,10 +14,10 @@ Supersedes three predecessor apps (each left intact, still independently buildab
 
 - **Menu bar**: live two-line `CPU %` / `MEM %` readout (ported from mac-monitor), values turn red under load
 - **Left-click** the icon → popover with 4 icon-tab switcher:
-  - 🖥 **Stats** — CPU/Memory detail, top process, Free Up Memory (Touch ID-gated `purge`)
+  - 🖥 **Stats** — CPU/Memory detail, top process, Free Up Memory (runs `purge` immediately, no prompt — see setup below)
   - 📅 **Calendar** — month grid, Irish public holidays marked (computed algorithmically)
   - 🧮 **Calculator** — basic 4-op calculator
-  - 📋 **Clipboard** — recent copies, click to copy + auto-paste
+  - 📋 **Clipboard** — recent copies with real thumbnails for images, click to copy + auto-paste
 - **Right-click** the icon → Free Up Memory, Enable Accessibility (if not granted), Quit
 - **⌘⇧V** anywhere → floating searchable paste-picker (independent of the popover), ↑/↓ to navigate, Return to paste
 - No Dock icon (`LSUIElement`); installs to `/Applications`, ad-hoc codesigned so the Accessibility grant survives rebuilds
@@ -55,9 +55,11 @@ to ClipKeep, it does not carry over — grant it again:**
 
 Without it, selecting a clipboard item still copies it — you just press ⌘V yourself.
 
-## Free Up Memory / Touch ID setup (optional)
+## Free Up Memory setup (optional)
 
-Same as mac-monitor — `purge` needs root; to run it via Touch ID instead of a password:
+`purge` needs root. Free Up Memory has no confirmation prompt — it runs
+immediately via a narrow passwordless-sudo rule scoped to just this one
+command:
 
 ```bash
 echo "$(whoami) ALL=(root) NOPASSWD: /usr/sbin/purge" | \
@@ -65,6 +67,8 @@ echo "$(whoami) ALL=(root) NOPASSWD: /usr/sbin/purge" | \
 sudo chmod 440 /etc/sudoers.d/mactools-purge
 sudo visudo -c
 ```
+
+Without this rule, Free Up Memory will fail (`sudo -n` doesn't prompt for a password — it just fails silently without the rule installed).
 
 ## Auto-start at login
 

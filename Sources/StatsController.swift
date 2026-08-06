@@ -1,10 +1,9 @@
 import SwiftUI
-import LocalAuthentication
 
 /// Bridges mac-monitor's stats/purge logic (AppKit-side timer sampling,
-/// `Process`, `LocalAuthentication`) into SwiftUI's Stats tab. `AppDelegate`
-/// owns one instance and calls `refresh()` on the same 2s timer that drives
-/// the menu-bar image; `StatsView` just observes it.
+/// `Process`) into SwiftUI's Stats tab. `AppDelegate` owns one instance and
+/// calls `refresh()` on the same 2s timer that drives the menu-bar image;
+/// `StatsView` just observes it.
 final class StatsController: ObservableObject {
     @Published var cpuText = "--%"
     @Published var memText = "--%"
@@ -33,22 +32,13 @@ final class StatsController: ObservableObject {
         }
     }
 
-    /// Frees inactive/cached memory using macOS's built-in `purge`. Gated by
-    /// Touch ID (LocalAuthentication); the command itself runs via a narrow
-    /// passwordless-sudo rule for /usr/sbin/purge, so no password is needed.
-    /// Ported verbatim from mac-monitor's `freeMemory`/`runPurge`.
+    /// Frees inactive/cached memory using macOS's built-in `purge`, via a
+    /// narrow passwordless-sudo rule for /usr/sbin/purge (see README). No
+    /// Touch ID gate — that sudoers rule is already the real access control;
+    /// `purge` is Apple's own tool and only flushes reclaimable caches, so a
+    /// biometric prompt on every click was friction without added safety.
     func freeMemory() {
-        let context = LAContext()
-        context.localizedCancelTitle = "Cancel"
-        var authError: NSError?
-        let policy: LAPolicy = context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &authError)
-            ? .deviceOwnerAuthenticationWithBiometrics
-            : .deviceOwnerAuthentication
-
-        context.evaluatePolicy(policy, localizedReason: "free up memory") { [weak self] success, _ in
-            guard success else { return }
-            DispatchQueue.main.async { self?.runPurge() }
-        }
+        runPurge()
     }
 
     private func runPurge() {
