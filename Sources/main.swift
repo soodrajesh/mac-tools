@@ -1,14 +1,15 @@
 import Cocoa
 import SwiftUI
 import Carbon.HIToolbox
+import UniformTypeIdentifiers
 
 // MARK: - App delegate
 //
 // One NSStatusItem showing mac-monitor's live two-line CPU/MEM readout.
-// Left-click toggles an NSPopover (Stats/Calendar/Calculator/Clipboard,
-// from quick-tools). Right-click shows Free Up Memory / Accessibility /
-// Quit. The ⌘⇧V floating paste-picker (from ClipKeep) runs independently
-// of both, via a global hotkey.
+// Left-click toggles an NSPopover (Stats/Calendar/Calculator/Clipboard/OCR,
+// from quick-tools + SnapText). Right-click shows Free Up Memory / Accessibility /
+// Quit. Two independent global hotkeys: ⌘⇧V for the clipboard picker (ClipKeep),
+// ⌘⇧O for OCR capture (SnapText).
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
@@ -21,7 +22,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let clipboardStore = ClipboardStore()
     private var clipboardMonitor: ClipboardMonitor!
     private var picker: PickerController!
-    private var hotKey: HotKey?
+    private var hotKeyPaste: HotKey?
+    private var hotKeyOCR: HotKey?
+    private var isOCRProcessing = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -39,19 +42,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         popover.contentSize = NSSize(width: 280, height: 240)
         popover.behavior = .transient
         popover.appearance = NSAppearance(named: .vibrantDark)
-        popover.contentViewController = NSHostingController(rootView: QuickToolsPanel(
+        let panel = QuickToolsPanel(
             stats: stats,
             clipboardStore: clipboardStore,
-            onSelectClipboardItem: { [weak self] item in self?.selectClipboardItem(item) }
-        ))
+            onSelectClipboardItem: { [weak self] item in self?.selectClipboardItem(item) },
+            onOCRCapture: { [weak self] in self?.ocrCapture() },
+            onOCRChooseImage: { [weak self] in self?.ocrChooseImage() },
+            isOCRProcessing: Binding(
+                get: { self.isOCRProcessing },
+                set: { self.isOCRProcessing = $0 }
+            )
+        )
+        popover.contentViewController = NSHostingController(rootView: panel)
 
         clipboardMonitor = ClipboardMonitor(store: clipboardStore)
         clipboardMonitor.start()
         picker = PickerController(store: clipboardStore)
 
-        // kVK_ANSI_V = 9; cmdKey|shiftKey are Carbon modifier masks for ⌘⇧.
-        hotKey = HotKey(keyCode: 9, modifiers: UInt32(cmdKey | shiftKey)) { [weak self] in
+        // kVK_ANSI_V = 9; kVK_ANSI_O = 31; cmdKey|shiftKey are Carbon modifier masks for ⌘⇧.
+        hotKeyPaste = HotKey(keyCode: 9, modifiers: UInt32(cmdKey | shiftKey)) { [weak self] in
             self?.picker.show()
+        }
+        hotKeyOCR = HotKey(keyCode: 31, modifiers: UInt32(cmdKey | shiftKey)) { [weak self] in
+            self?.ocrCapture()
         }
 
         if !PasteSimulator.isTrusted {
@@ -154,6 +167,48 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func requestAccessibility() {
         PasteSimulator.requestAccessibility()
+    }
+
+    private func ocrCapture() {
+        guard !isOCRProcessing else { return }
+        isOCRProcessing = true
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let image = ScreenCapture.captureRegion() else {
+                DispatchQueue.main.async { self?.isOCRProcessing = false }
+                return
+            }
+            self?.runOCR(on: image)
+        }
+    }
+
+    private func ocrChooseImage() {
+        guard !isOCRProcessing else { return }
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = [.image]
+        guard panel.runModal() == .OK, let url = panel.url, let image = NSImage(contentsOf: url) else { return }
+
+        isOCRProcessing = true
+        runOCR(on: image)
+    }
+
+    private func runOCR(on image: NSImage) {
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let text = OCRService.recognize(image)
+            DispatchQueue.main.async {
+                self?.finishOCR(text: text)
+            }
+        }
+    }
+
+    private func finishOCR(text: String) {
+        isOCRProcessing = false
+        guard !text.isEmpty else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
     }
 
     @objc func quit() {
