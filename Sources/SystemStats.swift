@@ -1,9 +1,12 @@
 import Cocoa
 import Darwin
+import IOKit
+import IOKit.storage
 
 // MARK: - System stats
 //
-// Ported verbatim from mac-monitor/main.swift.
+// CPU/memory/topProcess ported verbatim from mac-monitor/main.swift.
+// Network and disk I/O added for MacTools.
 
 enum SystemStats {
     /// Reads the cumulative-since-boot CPU tick counters, summed across all cores.
@@ -99,6 +102,75 @@ enum SystemStats {
         let name = String(cols[cols.index(after: spaceIdx)...]).trimmingCharacters(in: .whitespaces)
         let cpu = Double(cpuStr) ?? 0
         return (name, cpu)
+    }
+
+    /// Cumulative-since-boot bytes in/out, summed across all active
+    /// (up, non-loopback) interfaces via `getifaddrs`'s link-layer entries —
+    /// the same counters `netstat -ib` reads, but read directly with no
+    /// subprocess. Delta this over time (same pattern as `cpuUsage`) for a
+    /// live throughput reading.
+    static func networkBytes() -> (rx: UInt64, tx: UInt64)? {
+        var ifaddrPtr: UnsafeMutablePointer<ifaddrs>?
+        guard getifaddrs(&ifaddrPtr) == 0, let firstAddr = ifaddrPtr else { return nil }
+        defer { freeifaddrs(ifaddrPtr) }
+
+        var rx: UInt64 = 0
+        var tx: UInt64 = 0
+        var ptr: UnsafeMutablePointer<ifaddrs> = firstAddr
+        while true {
+            let ifa = ptr.pointee
+            let flags = Int32(ifa.ifa_flags)
+            let isUp = (flags & IFF_UP) != 0
+            let isLoopback = (flags & IFF_LOOPBACK) != 0
+            if isUp, !isLoopback, ifa.ifa_addr.pointee.sa_family == UInt8(AF_LINK), let data = ifa.ifa_data {
+                let networkData = data.withMemoryRebound(to: if_data.self, capacity: 1) { $0.pointee }
+                rx += UInt64(networkData.ifi_ibytes)
+                tx += UInt64(networkData.ifi_obytes)
+            }
+            guard let next = ifa.ifa_next else { break }
+            ptr = next
+        }
+        return (rx, tx)
+    }
+
+    /// Cumulative-since-mount read/write bytes, summed across all
+    /// `IOBlockStorageDriver` instances (what `iostat` itself reads) — the
+    /// same delta-over-time pattern as CPU/network gives live disk
+    /// throughput without shelling out to `iostat` (which needs a blocking
+    /// ~1s wait between samples to report a rate instead of a lifetime average).
+    static func diskBytes() -> (read: UInt64, write: UInt64)? {
+        let matching = IOServiceMatching("IOBlockStorageDriver")
+        var iterator: io_iterator_t = 0
+        guard IOServiceGetMatchingServices(kIOMainPortDefault, matching, &iterator) == KERN_SUCCESS else { return nil }
+        defer { IOObjectRelease(iterator) }
+
+        var totalRead: UInt64 = 0
+        var totalWrite: UInt64 = 0
+        var service = IOIteratorNext(iterator)
+        while service != 0 {
+            defer {
+                IOObjectRelease(service)
+                service = IOIteratorNext(iterator)
+            }
+            var props: Unmanaged<CFMutableDictionary>?
+            guard IORegistryEntryCreateCFProperties(service, &props, kCFAllocatorDefault, 0) == KERN_SUCCESS,
+                  let dict = props?.takeRetainedValue() as? [String: Any],
+                  let stats = dict["Statistics"] as? [String: Any] else { continue }
+            if let read = stats["Bytes (Read)"] as? UInt64 { totalRead += read }
+            if let write = stats["Bytes (Write)"] as? UInt64 { totalWrite += write }
+        }
+        return (totalRead, totalWrite)
+    }
+
+    /// Free/total capacity of the boot volume, via `statfs` on "/".
+    static func diskCapacity() -> (freeGB: Double, totalGB: Double)? {
+        var fs = statfs()
+        guard statfs("/", &fs) == 0 else { return nil }
+        let gb = 1024.0 * 1024.0 * 1024.0
+        let blockSize = Double(fs.f_bsize)
+        let freeGB = (Double(fs.f_bavail) * blockSize) / gb
+        let totalGB = (Double(fs.f_blocks) * blockSize) / gb
+        return (freeGB, totalGB)
     }
 }
 

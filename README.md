@@ -14,7 +14,7 @@ Supersedes three predecessor apps (each left intact, still independently buildab
 
 - **Menu bar**: live two-line `CPU %` / `MEM %` readout (ported from mac-monitor), values turn red under load
 - **Left-click** the icon → popover with 4 icon-tab switcher:
-  - 🖥 **Stats** — CPU/Memory detail, top process, Free Up Memory (runs `purge` immediately, no prompt — see setup below)
+  - 🖥 **Stats** — CPU/Memory detail, top process, live network throughput (down/up) and disk I/O (read/write) with free/total capacity, Free Up Memory (runs `purge` immediately, no prompt — see setup below)
   - 📅 **Calendar** — month grid, Irish public holidays marked (computed algorithmically)
   - 🧮 **Calculator** — basic 4-op calculator
   - 📋 **Clipboard** — recent copies with real thumbnails for images, click to copy + auto-paste
