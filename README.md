@@ -23,17 +23,26 @@ Supersedes four predecessor apps (each left intact, still independently buildabl
 - **Right-click** the icon → Free Up Memory, Enable Accessibility (if not granted), Quit
 - **⌘⇧V** anywhere → floating searchable paste-picker (independent of the popover), ↑/↓ to navigate, Return to paste
 - **⌘⇧O** anywhere → macOS screenshot UI (same as ⌘⇧4), runs OCR, copies text to clipboard
-- No Dock icon (`LSUIElement`); installs to `/Applications`, ad-hoc codesigned so the Accessibility grant survives rebuilds
+- No Dock icon (`LSUIElement`); installs to `/Applications`, signed with a stable local identity so permission grants survive rebuilds
 
 ## Build
 
 Requires the Xcode Command Line Tools (`xcode-select --install`).
 
 ```bash
+./setup-signing.sh   # one-time: creates a local code-signing identity
 ./build.sh
 ```
 
-Compiles `Sources/*.swift`, renders the app icon, ad-hoc signs, and installs to `/Applications/MacTools.app`.
+Compiles `Sources/*.swift`, renders the app icon, signs, and installs to `/Applications/MacTools.app`.
+
+**Why `setup-signing.sh`:** ad-hoc signing (`codesign --sign -`) embeds no identity —
+just a hash of the raw binary — so every rebuild produces a different signature,
+and macOS silently drops any Accessibility/Screen Recording grant keyed to it,
+reprompting on next use. `setup-signing.sh` creates a self-signed local
+certificate once; `build.sh` then signs with that stable identity instead, so
+grants persist across rebuilds. If you skip this step, `build.sh` falls back to
+ad-hoc signing and warns you.
 
 ## Before first launch
 
