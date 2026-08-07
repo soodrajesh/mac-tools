@@ -10,7 +10,7 @@ struct ClipboardListView: View {
                 Spacer()
                 Text("No clipboard history yet")
                     .font(.system(size: 11))
-                    .foregroundColor(Color(red: 0.6, green: 0.65, blue: 0.72))
+                    .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .center)
                 Spacer()
             } else {
@@ -21,7 +21,7 @@ struct ClipboardListView: View {
                                 rowContent(for: item)
                                     .padding(.horizontal, 6)
                                     .frame(height: 22)
-                                    .background(Color.white.opacity(0.06))
+                                    .background(Color(nsColor: .quaternaryLabelColor))
                                     .cornerRadius(4)
                             }
                             .buttonStyle(.plain)
@@ -44,7 +44,7 @@ struct ClipboardListView: View {
             case .text:
                 Text(rowTitle(for: item))
                     .font(.system(size: 11))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.primary)
                     .lineLimit(1)
             case .image:
                 if let f = item.imageFile, let nsImage = NSImage(contentsOf: store.imageURL(for: f)) {
@@ -55,14 +55,14 @@ struct ClipboardListView: View {
                         .cornerRadius(2)
                     Text("\(Int(nsImage.size.width))×\(Int(nsImage.size.height))")
                         .font(.system(size: 11))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.primary)
                 } else {
                     Image(systemName: "photo")
                         .font(.system(size: 11))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.primary)
                     Text("Image")
                         .font(.system(size: 11))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.primary)
                 }
             }
             Spacer()

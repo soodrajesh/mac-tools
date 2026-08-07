@@ -19,7 +19,7 @@ struct CalculatorView: View {
         VStack(spacing: 5) {
             Text(display)
                 .font(.system(size: 16, weight: .light, design: .default))
-                .foregroundColor(.white)
+                .foregroundColor(.primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
                 .frame(maxWidth: .infinity, alignment: .trailing)
@@ -37,7 +37,7 @@ struct CalculatorView: View {
                                     .frame(maxWidth: .infinity)
                                     .frame(height: 26)
                                     .background(buttonColor(btn))
-                                    .foregroundColor(.white)
+                                    .foregroundColor(.primary)
                                     .cornerRadius(4)
                             }
                             .buttonStyle(.plain)
@@ -56,7 +56,7 @@ struct CalculatorView: View {
         if ["C", "±", "%"].contains(btn) {
             return Color(.systemGray)
         }
-        return Color.white.opacity(0.15)
+        return Color(nsColor: .quaternaryLabelColor)
     }
 
     func handleTap(_ btn: String) {

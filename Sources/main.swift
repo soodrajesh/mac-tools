@@ -5,10 +5,9 @@ import Carbon.HIToolbox
 // MARK: - App delegate
 //
 // One NSStatusItem showing mac-monitor's live two-line CPU/MEM readout.
-// Left-click toggles an NSPopover (Stats/Calendar/Calculator/Clipboard,
+// Left-click toggles an NSPopover (Stats/Calendar/Calculator/Clipboard/Notepad,
 // from quick-tools). Right-click shows Free Up Memory / Accessibility /
-// Quit. The ⌘⇧V floating paste-picker (from ClipKeep) runs independently
-// of both, via a global hotkey.
+// Quit. The ⌘⇧V paste-picker and ⌘⇧N notepad opener run via global hotkeys.
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
@@ -19,12 +18,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private let stats = StatsController()
     private let clipboardStore = ClipboardStore()
+    private let notepadStore = NotepadStore()
+    private let panelState = PanelState()
     private var clipboardMonitor: ClipboardMonitor!
     private var picker: PickerController!
     private var hotKey: HotKey?
+    private var notepadHotKey: HotKey?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        ApplicationMenus.installStandardEditMenu()
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.isVisible = true
@@ -38,12 +41,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         popover = NSPopover()
         popover.contentSize = NSSize(width: 280, height: 240)
         popover.behavior = .transient
-        popover.appearance = NSAppearance(named: .vibrantDark)
-        popover.contentViewController = NSHostingController(rootView: QuickToolsPanel(
+        popover.animates = true
+        popover.delegate = self
+        let hosting = NSHostingController(rootView: QuickToolsPanel(
             stats: stats,
             clipboardStore: clipboardStore,
+            notepadStore: notepadStore,
+            panelState: panelState,
             onSelectClipboardItem: { [weak self] item in self?.selectClipboardItem(item) }
         ))
+        hosting.view.wantsLayer = true
+        hosting.view.layer?.backgroundColor = NSColor.clear.cgColor
+        popover.contentViewController = hosting
 
         clipboardMonitor = ClipboardMonitor(store: clipboardStore)
         clipboardMonitor.start()
@@ -54,26 +63,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.picker.show()
         }
 
+        // kVK_ANSI_N = 45 — open popover on Notepad tab.
+        notepadHotKey = HotKey(keyCode: 45, modifiers: UInt32(cmdKey | shiftKey)) { [weak self] in
+            self?.showNotepadFromHotkey()
+        }
+
         if !PasteSimulator.isTrusted {
             PasteSimulator.requestAccessibility()
         }
 
         stats.refresh()
-        refreshStatusImage()
+        refreshStatusItem()
         timer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
             self?.stats.refresh()
-            self?.refreshStatusImage()
+            self?.refreshStatusItem()
         }
     }
 
     override func observeValue(forKeyPath keyPath: String?, of object: Any?,
                                 change: [NSKeyValueChangeKey: Any]?, context: UnsafeMutableRawPointer?) {
         guard keyPath == "effectiveAppearance" else { return }
-        refreshStatusImage()
+        refreshStatusItem()
     }
 
-    private func refreshStatusImage() {
+    private func refreshStatusItem() {
         let isDark = statusItem.button?.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+        statusItem.button?.attributedTitle = NSAttributedString(string: "")
         statusItem.button?.image = makeStatusImage(
             cpuValue: stats.cpuText, cpuHigh: stats.cpuHigh,
             memValue: stats.memText, memHigh: stats.memHigh,
@@ -94,16 +109,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if popover.isShown {
             closePopover()
         } else {
-            frontmostBeforeShow = NSWorkspace.shared.frontmostApplication
-            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-            startGlobalClickMonitor()
+            openPopover(relativeTo: button)
         }
+    }
+
+    private func showNotepadFromHotkey() {
+        panelState.openNotepadTab()
+        guard let button = statusItem.button else { return }
+        if popover.isShown {
+            return
+        }
+        openPopover(relativeTo: button)
+    }
+
+    private func openPopover(relativeTo button: NSStatusBarButton) {
+        frontmostBeforeShow = NSWorkspace.shared.frontmostApplication
+        NSApp.activate(ignoringOtherApps: true)
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        configurePopoverWindow()
+        startGlobalClickMonitor()
     }
 
     /// `.transient` alone doesn't reliably close the popover when a click
     /// lands on a *different* app's status item — a global mouse-down
     /// monitor is the reliable fix (only fires for clicks outside our own
     /// app, so it can't interfere with our own button's toggle logic).
+    private func configurePopoverWindow() {
+        guard let window = popover.contentViewController?.view.window else { return }
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.makeKey()
+    }
+
     private func startGlobalClickMonitor() {
         globalClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
             self?.closePopover()
@@ -159,6 +196,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func quit() {
         statusItem.button?.removeObserver(self, forKeyPath: "effectiveAppearance")
         NSApplication.shared.terminate(nil)
+    }
+}
+
+extension AppDelegate: NSPopoverDelegate {
+    func popoverDidShow(_ notification: Notification) {
+        NSApp.activate(ignoringOtherApps: true)
+        configurePopoverWindow()
     }
 }
 

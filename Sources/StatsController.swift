@@ -79,38 +79,57 @@ final class StatsController: ObservableObject {
         return String(format: "%.1f MB/s", kb / 1024)
     }
 
-    /// Frees inactive/cached memory using macOS's built-in `purge`, via a
-    /// narrow passwordless-sudo rule for /usr/sbin/purge (see README). No
-    /// Touch ID gate — that sudoers rule is already the real access control;
-    /// `purge` is Apple's own tool and only flushes reclaimable caches, so a
-    /// biometric prompt on every click was friction without added safety.
+    /// Frees inactive/cached memory using macOS's built-in `purge`. Uses a
+    /// passwordless sudo rule when installed (see README); otherwise prompts
+    /// with Touch ID or admin password via the system authorization dialog.
     func freeMemory() {
-        runPurge()
-    }
-
-    private func runPurge() {
+        guard !freeMemInProgress else { return }
         freeMemStatus = "Freeing memory…"
         freeMemInProgress = true
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let task = Process()
-            task.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
-            task.arguments = ["-n", "/usr/sbin/purge"]
-            var succeeded = false
-            do {
-                try task.run()
-                task.waitUntilExit()
-                succeeded = task.terminationStatus == 0
-            } catch {
-                succeeded = false
+            let result: PurgeResult
+            if Self.tryPasswordlessPurge() {
+                result = .success
+            } else {
+                var interactiveResult: PurgeResult = .failed
+                DispatchQueue.main.sync {
+                    interactiveResult = PrivilegedPurge.runInteractive()
+                }
+                result = interactiveResult
             }
             DispatchQueue.main.async {
-                self?.freeMemStatus = succeeded ? "Freed!" : "Failed — see README (sudoers setup)"
-                self?.freeMemInProgress = false
-                self?.refresh()
-                DispatchQueue.main.asyncAfter(deadline: .now() + (succeeded ? 2 : 5)) {
-                    self?.freeMemStatus = "Free Up Memory"
-                }
+                self?.applyPurgeResult(result)
             }
+        }
+    }
+
+    private func applyPurgeResult(_ result: PurgeResult) {
+        switch result {
+        case .success:
+            freeMemStatus = "Freed!"
+        case .cancelled:
+            freeMemStatus = "Cancelled"
+        case .failed:
+            freeMemStatus = "Failed"
+        }
+        freeMemInProgress = false
+        refresh()
+        let resetDelay: TimeInterval = result == .success ? 2 : (result == .cancelled ? 1.5 : 3)
+        DispatchQueue.main.asyncAfter(deadline: .now() + resetDelay) { [weak self] in
+            self?.freeMemStatus = "Free Up Memory"
+        }
+    }
+
+    private static func tryPasswordlessPurge() -> Bool {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
+        task.arguments = ["-n", "/usr/sbin/purge"]
+        do {
+            try task.run()
+            task.waitUntilExit()
+            return task.terminationStatus == 0
+        } catch {
+            return false
         }
     }
 }

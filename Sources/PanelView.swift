@@ -1,36 +1,37 @@
 import SwiftUI
 
-/// Single popover content: an icon-only segmented switcher up top (Stats /
-/// Calendar / Calculator / Clipboard) — text labels don't fit four-wide at
-/// this size. All four tabs share the exact same fixed content size so
-/// switching never resizes the panel. Opens on Stats.
+/// Single popover content: icon-only segmented switcher (Stats / Calendar /
+/// Calculator / Clipboard / Notepad). All tabs share the same fixed content
+/// size so switching never resizes the panel. Opens on Stats.
 struct QuickToolsPanel: View {
     @ObservedObject var stats: StatsController
     @ObservedObject var clipboardStore: ClipboardStore
+    @ObservedObject var notepadStore: NotepadStore
+    @ObservedObject var panelState: PanelState
     let onSelectClipboardItem: (ClipboardItem) -> Void
-
-    @State private var selection = 0 // 0 = Stats, 1 = Calendar, 2 = Calculator, 3 = Clipboard
 
     var body: some View {
         VStack(spacing: 8) {
-            Picker("", selection: $selection) {
+            Picker("", selection: $panelState.selectedTab) {
                 Image(systemName: "cpu").tag(0)
                 Image(systemName: "calendar").tag(1)
                 Image(systemName: "plus.slash.minus").tag(2)
                 Image(systemName: "doc.on.clipboard").tag(3)
+                Image(systemName: "note.text").tag(4)
             }
             .pickerStyle(.segmented)
             .labelsHidden()
 
-            switch selection {
+            switch panelState.selectedTab {
             case 0: StatsView(stats: stats)
             case 1: CalendarView()
             case 2: CalculatorView()
-            default: ClipboardListView(store: clipboardStore, onSelect: onSelectClipboardItem)
+            case 3: ClipboardListView(store: clipboardStore, onSelect: onSelectClipboardItem)
+            default: NotepadView(store: notepadStore)
             }
         }
         .padding(10)
         .frame(width: 280, height: 240)
-        .background(Color.clear)
+        .background(PopoverVisualEffect())
     }
 }

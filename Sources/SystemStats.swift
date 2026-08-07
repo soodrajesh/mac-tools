@@ -179,11 +179,35 @@ enum SystemStats {
 let cpuHighThreshold: Double = 90.0     // CPU load %
 let memPressureThreshold: Double = 75.0 // memory pressure %
 
-/// Renders the stacked two-line readout into an image sized to the exact
-/// menu-bar height, so the text is pixel-perfectly vertically centered.
-/// `cpuHigh`/`memHigh` turn the respective value red. Not a template image
-/// (needed for the red alert color), so the base color must track the menu
-/// bar's actual light/dark appearance instead of assuming dark.
+/// Renders the stacked two-line readout as an attributed string for the status
+/// button (native highlight pill like Weather). `cpuHigh`/`memHigh` turn the
+/// respective value red.
+func makeStatusAttributedTitle(cpuValue: String, cpuHigh: Bool,
+                             memValue: String, memHigh: Bool,
+                             isDark: Bool) -> NSAttributedString {
+    let font = NSFont.monospacedDigitSystemFont(ofSize: 8, weight: .bold)
+    let normal = isDark ? NSColor.labelColor : NSColor.labelColor
+    let red = NSColor.systemRed
+
+    func line(_ label: String, _ value: String, high: Bool) -> NSAttributedString {
+        let s = NSMutableAttributedString(string: "\(label) ", attributes: [.font: font, .foregroundColor: normal])
+        s.append(NSAttributedString(string: value, attributes: [.font: font, .foregroundColor: high ? red : normal]))
+        return s
+    }
+
+    let combined = NSMutableAttributedString()
+    combined.append(line("CPU", cpuValue, high: cpuHigh))
+    combined.append(NSAttributedString(string: "\n"))
+    combined.append(line("MEM", memValue, high: memHigh))
+
+    let para = NSMutableParagraphStyle()
+    para.lineSpacing = -1
+    para.alignment = .center
+    combined.addAttribute(.paragraphStyle, value: para, range: NSRange(location: 0, length: combined.length))
+    return combined
+}
+
+/// Bitmap fallback (unused by MacTools menu bar; kept for reference tooling).
 func makeStatusImage(cpuValue: String, cpuHigh: Bool,
                       memValue: String, memHigh: Bool,
                       isDark: Bool) -> NSImage {

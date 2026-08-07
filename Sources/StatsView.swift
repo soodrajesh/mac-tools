@@ -3,7 +3,7 @@ import SwiftUI
 struct StatsView: View {
     @ObservedObject var stats: StatsController
 
-    private var secondaryColor: Color { Color(red: 0.6, green: 0.65, blue: 0.72) }
+    private var secondaryColor: Color { .secondary }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -13,7 +13,7 @@ struct StatsView: View {
             detailRow(icon: "gauge", text: stats.memDetail)
             detailRow(icon: "flame", text: stats.topProcessText)
 
-            Divider().overlay(Color.white.opacity(0.15))
+            Divider()
 
             categoryRow(category: "wifi", down: stats.netDownText, up: stats.netUpText)
             categoryRow(category: "internaldrive", down: stats.diskReadText, up: stats.diskWriteText)
@@ -27,8 +27,8 @@ struct StatsView: View {
                     .font(.system(size: 12, weight: .medium))
                     .frame(maxWidth: .infinity)
                     .frame(height: 26)
-                    .background(Color.white.opacity(0.15))
-                    .foregroundColor(.white)
+                    .background(Color(nsColor: .quaternaryLabelColor))
+                    .foregroundStyle(.primary)
                     .cornerRadius(5)
             }
             .buttonStyle(.plain)
@@ -45,11 +45,11 @@ struct StatsView: View {
                 .frame(width: 14)
             Text(label)
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(.white)
+                .foregroundStyle(.primary)
             Spacer()
             Text(value)
                 .font(.system(size: 16, weight: .bold, design: .rounded))
-                .foregroundColor(high ? .red : .white)
+                .foregroundStyle(high ? Color.red : Color.primary)
         }
     }
 
@@ -84,7 +84,7 @@ struct StatsView: View {
                     .foregroundColor(secondaryColor)
                 Text(down)
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.primary)
             }
             HStack(spacing: 4) {
                 Image(systemName: "arrow.up")
@@ -92,7 +92,7 @@ struct StatsView: View {
                     .foregroundColor(secondaryColor)
                 Text(up)
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.primary)
             }
             Spacer()
         }

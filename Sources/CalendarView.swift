@@ -13,7 +13,7 @@ struct CalendarView: View {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 10, weight: .semibold))
                         .frame(width: 16, height: 16)
-                        .foregroundColor(.white)
+                        .foregroundStyle(.primary)
                 }
                 .buttonStyle(.plain)
 
@@ -24,7 +24,7 @@ struct CalendarView: View {
                 Button(action: jumpToToday) {
                     Text(monthYearFormatter.string(from: displayedMonth))
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundStyle(.primary)
                 }
                 .buttonStyle(.plain)
                 .help("Jump to today")
@@ -35,7 +35,7 @@ struct CalendarView: View {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 10, weight: .semibold))
                         .frame(width: 16, height: 16)
-                        .foregroundColor(.white)
+                        .foregroundStyle(.primary)
                 }
                 .buttonStyle(.plain)
             }
@@ -46,7 +46,7 @@ struct CalendarView: View {
                 ForEach(["S", "M", "T", "W", "T", "F", "S"], id: \.self) { day in
                     Text(day)
                         .font(.system(size: 9, weight: .semibold))
-                        .foregroundColor(Color(red: 0.5, green: 0.55, blue: 0.65))
+                        .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity)
                 }
             }
@@ -69,7 +69,7 @@ struct CalendarView: View {
             let day = calendar.component(.day, from: date)
             Text("\(day)")
                 .font(.system(size: 10, weight: .semibold))
-                .foregroundColor(isCurrentMonth(date) ? .white : Color(red: 0.3, green: 0.35, blue: 0.45))
+                .foregroundStyle(isCurrentMonth(date) ? Color.primary : Color.secondary.opacity(0.6))
                 .frame(width: 22, height: 22)
                 .background(isToday(date) ? Color(red: 0.5, green: 0.65, blue: 0.8) : Color.clear)
                 .cornerRadius(5)
