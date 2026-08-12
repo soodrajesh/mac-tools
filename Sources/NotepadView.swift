@@ -50,7 +50,6 @@ struct NotepadView: View {
         .frame(width: 260, height: 190, alignment: .top)
         .onAppear {
             focusEditor = true
-            NSApp.activate(ignoringOtherApps: true)
         }
         .confirmationDialog("Clear all notepad text?", isPresented: $confirmClear, titleVisibility: .visible) {
             Button("Clear", role: .destructive) {

@@ -41,7 +41,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         popover = NSPopover()
         popover.contentSize = NSSize(width: 280, height: 240)
         popover.behavior = .transient
-        popover.animates = true
+        popover.animates = false
         popover.delegate = self
         let hosting = NSHostingController(rootView: QuickToolsPanel(
             stats: stats,
@@ -72,12 +72,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             PasteSimulator.requestAccessibility()
         }
 
-        stats.refresh()
+        stats.refresh(includeDetails: false)
         refreshStatusItem()
         timer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
-            self?.stats.refresh()
-            self?.refreshStatusItem()
+            self?.refreshStatsAndMenuBar()
         }
+    }
+
+    private func refreshStatsAndMenuBar() {
+        let details = popover.isShown && panelState.selectedTab == 0
+        stats.refresh(includeDetails: details)
+        refreshStatusItem()
     }
 
     override func observeValue(forKeyPath keyPath: String?, of object: Any?,
@@ -124,10 +129,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func openPopover(relativeTo button: NSStatusBarButton) {
         frontmostBeforeShow = NSWorkspace.shared.frontmostApplication
-        NSApp.activate(ignoringOtherApps: true)
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         configurePopoverWindow()
         startGlobalClickMonitor()
+        stats.refresh(includeDetails: panelState.selectedTab == 0)
     }
 
     /// `.transient` alone doesn't reliably close the popover when a click
@@ -201,7 +206,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
 extension AppDelegate: NSPopoverDelegate {
     func popoverDidShow(_ notification: Notification) {
-        NSApp.activate(ignoringOtherApps: true)
         configurePopoverWindow()
     }
 }

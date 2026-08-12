@@ -1,12 +1,12 @@
 import SwiftUI
 
 /// Single popover content: icon-only segmented switcher (Stats / Calendar /
-/// Calculator / Clipboard / Notepad). All tabs share the same fixed content
-/// size so switching never resizes the panel. Opens on Stats.
+/// Calculator / Clipboard / Notepad). Tabs stay mounted (hidden) so switching
+/// does not recreate heavy views like the notepad `NSTextView`.
 struct QuickToolsPanel: View {
-    @ObservedObject var stats: StatsController
-    @ObservedObject var clipboardStore: ClipboardStore
-    @ObservedObject var notepadStore: NotepadStore
+    let stats: StatsController
+    let clipboardStore: ClipboardStore
+    let notepadStore: NotepadStore
     @ObservedObject var panelState: PanelState
     let onSelectClipboardItem: (ClipboardItem) -> Void
 
@@ -22,16 +22,31 @@ struct QuickToolsPanel: View {
             .pickerStyle(.segmented)
             .labelsHidden()
 
-            switch panelState.selectedTab {
-            case 0: StatsView(stats: stats)
-            case 1: CalendarView()
-            case 2: CalculatorView()
-            case 3: ClipboardListView(store: clipboardStore, onSelect: onSelectClipboardItem)
-            default: NotepadView(store: notepadStore)
+            ZStack {
+                tab(0) { StatsView(stats: stats) }
+                tab(1) { CalendarView() }
+                tab(2) { CalculatorView() }
+                tab(3) { ClipboardListView(store: clipboardStore, onSelect: onSelectClipboardItem) }
+                tab(4) { NotepadView(store: notepadStore) }
+            }
+            .onChange(of: panelState.selectedTab) { tab in
+                if tab == 0 {
+                    stats.refresh(includeDetails: true)
+                }
             }
         }
         .padding(10)
         .frame(width: 280, height: 240)
         .background(PopoverVisualEffect())
+    }
+
+    @ViewBuilder
+    private func tab(_ index: Int, @ViewBuilder content: () -> some View) -> some View {
+        let visible = panelState.selectedTab == index
+        content()
+            .frame(width: 260, height: 190)
+            .opacity(visible ? 1 : 0)
+            .allowsHitTesting(visible)
+            .accessibilityHidden(!visible)
     }
 }
